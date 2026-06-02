@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface-1 text-gray-100 font-sans antialiased;
+    background-color: #080e1a;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-2;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-4 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-500;
+  }
+
+  ::selection {
+    @apply bg-brand-500/30 text-white;
+  }
+}
+
+@layer components {
+  /* ── Glass Card ──────────────────────────────────────────────────────────── */
+  .glass-card {
+    @apply bg-surface-3/60 backdrop-blur-sm border border-white/5 rounded-xl shadow-card;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-200 hover:border-brand-500/30 hover:shadow-glow-sm;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 
+           text-white font-medium rounded-lg transition-all duration-150 
+           shadow-glow-sm hover:shadow-glow-md active:scale-95 disabled:opacity-50 
+           disabled:cursor-not-allowed disabled:shadow-none text-sm;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-surface-4 hover:bg-surface-5 
+           text-gray-200 font-medium rounded-lg border border-white/10 
+           hover:border-white/20 transition-all duration-150 active:scale-95 
+           disabled:opacity-50 disabled:cursor-not-allowed text-sm;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-danger/10 hover:bg-danger/20 
+           text-danger font-medium rounded-lg border border-danger/30 
+           hover:border-danger/50 transition-all duration-150 active:scale-95 text-sm;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-gray-200 
+           hover:bg-white/5 rounded-lg transition-all duration-150 text-sm;
+  }
+
+  /* ── Input Fields ─────────────────────────────────────────────────────────── */
+  .input-field {
+    @apply w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-lg text-gray-100 
+           placeholder-gray-500 text-sm
+           focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 
+           transition-colors duration-150;
+  }
+
+  .select-field {
+    @apply input-field appearance-none cursor-pointer;
+  }
+
+  /* Alias for shorter usage */
+  .input {
+    @apply input-field;
+  }
+
+  .select {
+    @apply select-field;
+  }
+
+  /* ── Badges ──────────────────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success { @apply badge bg-success/15 text-success border border-success/20; }
+  .badge-warning { @apply badge bg-warning/15 text-warning border border-warning/20; }
+  .badge-danger  { @apply badge bg-danger/15 text-danger border border-danger/20; }
+  .badge-info    { @apply badge bg-info/15 text-info border border-info/20; }
+  .badge-muted   { @apply badge bg-surface-4 text-gray-400 border border-white/5; }
+  .badge-brand   { @apply badge bg-brand-500/15 text-brand-400 border border-brand-500/20; }
+
+  /* ── Table ───────────────────────────────────────────────────────────────── */
+  .data-table {
+    @apply w-full text-sm;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider
+           border-b border-white/5 bg-surface-2/50;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-gray-300 border-b border-white/5;
+  }
+
+  .data-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+
+  /* ── Metric Card ─────────────────────────────────────────────────────────── */
+  .metric-card {
+    @apply glass-card p-5 flex flex-col gap-3;
+  }
+
+  /* ── Section Header ──────────────────────────────────────────────────────── */
+  .section-header {
+    @apply flex items-center justify-between mb-6;
+  }
+
+  .section-title {
+    @apply text-xl font-bold text-white;
+  }
+
+  /* ── Sidebar Nav ─────────────────────────────────────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-gray-400 hover:text-white hover:bg-white/5 
+           transition-all duration-150 cursor-pointer;
+  }
+
+  .nav-item.active {
+    @apply text-white bg-brand-500/15 border border-brand-500/20;
+  }
+
+  /* ── Status Dot ──────────────────────────────────────────────────────────── */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-healthy { @apply status-dot bg-success shadow-glow-green; }
+  .status-warning { @apply status-dot bg-warning; }
+  .status-critical { @apply status-dot bg-danger shadow-glow-red animate-pulse; }
+  .status-degraded { @apply status-dot bg-orange-400; }
+
+  /* ── Code Block ──────────────────────────────────────────────────────────── */
+  .code-block {
+    @apply font-mono text-xs bg-surface-0 border border-white/5 rounded-lg p-4 
+           text-gray-300 overflow-auto;
+  }
+
+  /* ── Glow divider ────────────────────────────────────────────────────────── */
+  .glow-divider {
+    @apply h-px w-full;
+    background: linear-gradient(to right, transparent, rgba(124, 58, 237, 0.5), transparent);
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #a78bfa 0%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+  }
+
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-0.5;
+  }
+
+  .row-hover:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+
+  .animate-in {
+    @apply animate-slide-up;
+  }
+}
