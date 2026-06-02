@@ -276,3 +276,5 @@ With a key, Claude `claude-sonnet-4-5` enhances each feature with semantic under
 ## 📄 License
 
 MIT — Built for enterprise AI governance.
+#   a g e n t g u a r d  
+ "# agentguard" 
