@@ -145,7 +145,7 @@ flowchart TD
 ### 1 · Clone and configure
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/jeevan841/agentguard/
 cd agentguard
 cp .env.example .env
 ```
@@ -202,7 +202,7 @@ npm install
 cp ../.env.example .env      # Edit .env with your local DB/Redis URLs
 npx prisma db push
 node seed.js
-npm run dev                  # http://localhost:4000
+npm run dev                  # usually http://localhost:4000
 ```
 
 ### Frontend
@@ -210,7 +210,7 @@ npm run dev                  # http://localhost:4000
 ```bash
 cd frontend
 npm install
-npm run dev                  # http://localhost:3000
+npm run dev                  # usually http://localhost:3000
 ```
 
 ---
