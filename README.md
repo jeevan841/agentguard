@@ -6,7 +6,7 @@
 
 *Enterprise-grade governance, auditing, and red-teaming for AI agents*
 
-Built with React · Node.js · PostgreSQL · Redis · Claude AI
+Built with React · Node.js · PostgreSQL · Redis 
 
 **Version 2.0**
 
