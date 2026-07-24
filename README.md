@@ -105,7 +105,6 @@ flowchart TD
 | **Red-Team Module** | Independently probes the same guardrails with adversarial attacks |
 | **Claude-Powered Reports** | Turns raw red-team results into a readable risk summary |
 
-> GitHub renders this diagram automatically since it's a native Mermaid code block — no extra setup required.
 
 ---
 
