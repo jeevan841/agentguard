@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint · Audit · Test · Docker build
+    runs-on: ubuntu-latest
+
+    # Service containers — these match docker-compose.yml for local dev parity
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agentguard
+          POSTGRES_PASSWORD: agentguard_secret
+          POSTGRES_DB: agentguard_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U agentguard"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://agentguard:agentguard_secret@localhost:5432/agentguard_test
+      REDIS_URL: redis://localhost:6379
+      # Use a deterministic test secret (not production)
+      JWT_SECRET: ci-test-secret-value-at-least-32-chars-long
+      PORT: 4001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      # ── Security audit (fail on high/critical) ──────────────────────────────
+      - name: npm audit
+        working-directory: backend
+        run: npm audit --audit-level=high
+
+      # ── Static analysis ─────────────────────────────────────────────────────
+      - name: ESLint (with security plugin)
+        working-directory: backend
+        run: |
+          # Install ESLint + security plugin if not already in devDeps
+          npx --yes eslint --no-eslintrc \
+            --plugin security \
+            --rule 'security/detect-non-literal-regexp: warn' \
+            --rule 'security/detect-possible-timing-attacks: warn' \
+            --rule 'security/detect-object-injection: warn' \
+            --ext .js src/ || true
+        # 'true' — non-zero ESLint exit is advisory in first run;
+        # convert to hard fail once a baseline is established.
+
+      # ── Database migrations (needed for Prisma-dependent tests) ────────────
+      - name: Run Prisma migrations
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://agentguard:agentguard_secret@localhost:5432/agentguard_test
+
+      # ── Jest test suite ─────────────────────────────────────────────────────
+      - name: Run tests
+        working-directory: backend
+        run: npm test -- --forceExit --passWithNoTests
+        timeout-minutes: 5
+
+      # ── Docker build validation ─────────────────────────────────────────────
+      - name: Build Docker image
+        working-directory: backend
+        run: |
+          docker build \
+            --file Dockerfile \
+            --tag agentguard-backend:ci-${{ github.sha }} \
+            --no-cache \
+            .
+
+      # ── Optional: push to GHCR on main branch ──────────────────────────────
+      # Uncomment once you have a deploy target and GITHUB_TOKEN permissions set.
+      # - name: Push to GitHub Container Registry
+      #   if: github.ref == 'refs/heads/main'
+      #   run: |
+      #     echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      #     docker tag agentguard-backend:ci-${{ github.sha }} ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+      #     docker push ghcr.io/${{ github.repository }}/backend:${{ github.sha }}

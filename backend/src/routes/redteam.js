@@ -6,22 +6,24 @@
  * GET  /redteam/attacks - List available attack categories
  */
 const express = require('express');
-const { runRedTeamSuite, ATTACK_LIBRARY } = require('../services/RedTeamService');
+const { ATTACK_LIBRARY } = require('../services/RedTeamService');
 const { generateRedTeamPdf } = require('../services/PdfService');
 const prisma = require('../prisma/client');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { redteamQueue } = require('../queues/redteamQueue');
+const { idempotency } = require('../middleware/idempotency');
 
 const router = express.Router();
 
 // POST /redteam/run — trigger a red-team suite (admin | operator only)
-router.post('/run', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
+router.post('/run', requireAuth, requireRole('admin', 'operator'), idempotency(), async (req, res, next) => {
   try {
     const { agent_id, attack_types } = req.body;
     if (!agent_id) {
       return res.status(400).json({ error: 'Bad Request', message: 'agent_id is required' });
     }
 
-    // Run async — respond immediately with run ID
+    // Create the DB row first so the worker has a stable ID to update
     const run = await prisma.redTeamRun.create({
       data: {
         agent_id,
@@ -31,23 +33,13 @@ router.post('/run', requireAuth, requireRole('admin', 'operator'), async (req, r
       },
     });
 
-    // Kick off async (don't await)
-    runRedTeamSuite(agent_id, attack_types)
-      .then((completed) => {
-        console.log(`[RedTeam] Run ${completed.id} completed. Pass rate: ${completed.pass_rate?.toFixed(1)}%`);
-      })
-      .catch((err) => {
-        console.error('[RedTeam] Run failed:', err.message);
-        prisma.redTeamRun.update({
-          where: { id: run.id },
-          data: { status: 'failed' },
-        }).catch(() => {});
-      });
+    // Enqueue via BullMQ — durable, retryable, survives process restart (P2#9)
+    await redteamQueue.add('run', { agent_id, attack_types, run_id: run.id });
 
     res.status(202).json({
       run_id: run.id,
       status: 'pending',
-      message: 'Red-team suite started. Poll GET /redteam/runs/:id for status.',
+      message: 'Red-team suite queued. Poll GET /redteam/runs/:id for status.',
     });
   } catch (err) {
     next(err);

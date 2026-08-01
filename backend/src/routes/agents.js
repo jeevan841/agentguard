@@ -12,6 +12,7 @@ const express = require('express');
 const { z } = require('zod');
 const prisma = require('../prisma/client');
 const { requireAuth, requireRole, generateCapabilityToken } = require('../middleware/auth');
+const { idempotency } = require('../middleware/idempotency');
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ const AgentSchema = z.object({
 });
 
 // POST /agents — create agent (admin | operator only)
-router.post('/', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
+router.post('/', requireAuth, requireRole('admin', 'operator'), idempotency(), async (req, res, next) => {
   try {
     const data = AgentSchema.parse(req.body);
     const agent = await prisma.agent.create({ data, include: { policy: true } });

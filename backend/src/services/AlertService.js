@@ -5,6 +5,7 @@
 const config = require('../config');
 const prisma = require('../prisma/client');
 const { validateWebhookUrl } = require('../utils/validateWebhookUrl');
+const crypto = require('crypto');
 
 let fetch;
 (async () => {
@@ -13,11 +14,25 @@ let fetch;
 
 /**
  * Send a webhook notification.
- * Re-validates the URL immediately before dispatch to guard against DNS rebinding:
- * a hostname that resolved to a public IP at registration time could be re-pointed
- * to an internal address before the next metrics broadcast cycle (every 10 s).
+ * Re-validates the URL immediately before dispatch to guard against DNS rebinding.
+ *
+ * P2#12 — HMAC signing:
+ *   If `secret` is provided, computes HMAC-SHA256(secret, JSON body) and sends
+ *   it as X-AgentGuard-Signature: sha256=<hex>.
+ *
+ *   Receiver verification (Node.js):
+ *     const sig = crypto.createHmac('sha256', secret)
+ *                        .update(rawBody).digest('hex');
+ *     const expected = `sha256=${sig}`;
+ *     const ok = crypto.timingSafeEqual(
+ *       Buffer.from(received), Buffer.from(expected));
+ *
+ *   Receiver verification (Python):
+ *     import hmac, hashlib
+ *     sig = 'sha256=' + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+ *     ok  = hmac.compare_digest(sig, received)
  */
-async function sendWebhook(url, payload) {
+async function sendWebhook(url, payload, secret = null) {
   if (!url || !fetch) return false;
 
   // Send-time SSRF re-check (DNS rebinding guard)
@@ -28,11 +43,20 @@ async function sendWebhook(url, payload) {
     return false;
   }
 
+  const body = JSON.stringify(payload);
+  const headers = { 'Content-Type': 'application/json' };
+
+  // P2#12 — sign the payload if a secret is configured
+  if (secret) {
+    const sig = crypto.createHmac('sha256', secret).update(body).digest('hex');
+    headers['X-AgentGuard-Signature'] = `sha256=${sig}`;
+  }
+
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers,
+      body,
       signal: AbortSignal.timeout(5000),
     });
     return response.ok;
