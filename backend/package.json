@@ -10,7 +10,10 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "test": "jest --testPathPatterns=test/unit --forceExit",
+    "test:coverage": "jest --testPathPatterns=test/unit --coverage --forceExit",
+    "benchmark": "node benchmark/run.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -37,6 +40,7 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
     "nodemon": "^3.1.9",
     "prism": "^1.0.0",
     "prisma": "^5.22.0"
@@ -46,5 +50,14 @@
       "prisma/*"
     ],
     "ext": "js,json"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 15000,
+    "collectCoverageFrom": [
+      "src/services/guardrail/**/*.js",
+      "src/utils/safeRegex.js",
+      "src/services/RedTeamService.js"
+    ]
   }
 }

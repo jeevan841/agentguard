@@ -1,0 +1,40 @@
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ─── Environment / Secrets ────────────────────────────────────────────────────
+# Covers backend/.env, .env, .env.local, .env.production, etc.
+# .env.example is intentionally NOT excluded — it should be committed.
+.env
+.env.*
+!.env.example
+
+# ─── Prisma generated client ──────────────────────────────────────────────────
+# Generated on each target platform — must never be committed.
+backend/node_modules/
+backend/prisma/generated/
+
+# ─── Build output ─────────────────────────────────────────────────────────────
+dist/
+build/
+frontend/dist/
+frontend/build/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ─── OS / Editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.idea/
+
+# ─── Testing / Coverage ───────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Temp ─────────────────────────────────────────────────────────────────────
+*.tmp
+*.swp

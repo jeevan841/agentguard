@@ -1,16 +1,25 @@
 # AgentGuard — New Features & Enhancements
 
-**Date:** 2026-05-16  
+**Date:** 2026-05-16 (original) | **Last updated:** 2026-08-01 (post-audit remediation)  
 **Version:** 2.0  
-**Status:** ✅ Ready for Testing
+**Status:** ⚠️ Features functional but see security notices below
+
+---
+
+> [!CAUTION]
+> **SECRET INCIDENT \u2014 ACTION REQUIRED BY REPO OWNER:**  
+> An Anthropic API key was committed to git history. **Rotate it immediately at
+> [console.anthropic.com](https://console.anthropic.com) before using this codebase.**
+
+> [!IMPORTANT]
+> A 2026-08-01 audit identified 7 confirmed bugs (2 critical crashes, fake ReDoS
+> protection, broken Docker build). All have been fixed. Run `npm test` to verify.
+> See `FIXES_IMPLEMENTED.md` for details.
 
 ---
 
 ## 🎉 Overview
 
-In addition to critical security fixes, AgentGuard now includes 7 powerful new features designed to improve usability, monitoring, and operational efficiency.
-
----
 
 ## ✨ Feature #1: Real-Time Notification System
 

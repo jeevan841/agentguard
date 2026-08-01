@@ -107,7 +107,7 @@ async function detectInjection(text, useAI = true) {
     return { passed: true, reason: 'No text to scan', confidence: 1.0, detections: [] };
   }
 
-  const patternDetections = patternScan(text);
+  const patternDetections = await patternScan(text);
 
   let aiResult = null;
   if (useAI) {

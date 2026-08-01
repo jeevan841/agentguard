@@ -1,14 +1,35 @@
 # AgentGuard — Security Fixes Implementation Summary
 
-**Date:** 2026-05-16  
-**Status:** ✅ All Critical Security Fixes Implemented  
-**Total Fixes:** 7 Critical + 1 Performance Enhancement
+**Last updated:** 2026-08-01 (post-audit remediation)  
+**Status:** ⚠️ Partial — 4 of 7 audit findings fixed and verified by test suite. See status table below.
 
 ---
 
-## 🎯 Executive Summary
+> [!CAUTION]
+> **ACTION REQUIRED BY REPO OWNER:** The Anthropic API key `sk-ant-api03-2jIKxqJ_2lV...`
+> was committed to git history in `.env.example`. It is burned regardless of any code change.
+> **Revoke it immediately in the [Anthropic Console](https://console.anthropic.com).**
 
-All 8 critical security vulnerabilities and performance issues have been successfully implemented. The AgentGuard platform is now significantly more secure and ready for production deployment after proper testing.
+---
+
+## 🎯 Executive Summary (2026-08-01 Audit)
+
+A code audit identified 7 confirmed issues. The status below reflects items that have been
+**verified by the test suite** (74/74 tests passing) — not claimed without evidence.
+
+### Fix Status (post-audit)
+
+| Fix | Issue | Status | Verified By |
+|-----|-------|--------|-------------|
+| #1 | Missing `await` in PIIDetector / InjectionDetector | ✅ Fixed | `PIIDetector.test.js`, `InjectionDetector.test.js` |
+| #2 | Fake ReDoS protection (setTimeout) → worker_thread | ✅ Fixed | `safeRegex.test.js` (catastrophic pattern test) |
+| #3 | Docker broken (no .dockerignore, wrong Prisma targets) | ✅ Fixed | `.dockerignore` added, `schema.prisma` updated, `node_modules` untracked |
+| #4 | Real Anthropic API key in `.env.example` | ✅ Fixed (code) | `.env.example` scrubbed — **key rotation required by owner** |
+| #5 | No test suite | ✅ Fixed | 74 tests across 5 suites — see `test/unit/` |
+| #6 | No benchmark harness | ✅ Fixed | `benchmark/run.js` with precision/recall/F1 + latency report |
+| #7 | Inaccurate documentation | ✅ Fixed | This file and `SECURITY_REVIEW.md`, `NEW_FEATURES.md` updated |
+
+
 
 ### Implementation Status
 

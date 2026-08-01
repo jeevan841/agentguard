@@ -123,7 +123,7 @@ async function detectPII(text, useAI = true) {
     return { passed: true, reason: 'No text to scan', confidence: 1.0, detections: [] };
   }
 
-  const regexDetections = regexScan(text);
+  const regexDetections = await regexScan(text);
 
   let aiResult = null;
   if (useAI) {

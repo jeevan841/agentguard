@@ -1,0 +1,32 @@
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+# Must be installed inside the image, not copied from the host.
+node_modules/
+
+# ─── Environment / Secrets ────────────────────────────────────────────────────
+# Never bake real secrets into the image layer.
+.env
+.env.*
+!.env.example
+
+# ─── Git history ──────────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ─── Generated Prisma client ──────────────────────────────────────────────────
+# The image runs `prisma generate` itself to get the correct Linux binary.
+# Copying a host-generated (Windows/native) client would break the container.
+prisma/generated/
+
+# ─── Dev tooling / Docs (not needed at runtime) ───────────────────────────────
+*.md
+.vscode/
+.idea/
+
+# ─── Test / Benchmark (not needed at runtime) ─────────────────────────────────
+test/
+benchmark/
+coverage/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/

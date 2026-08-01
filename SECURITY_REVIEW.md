@@ -1,12 +1,35 @@
 # AgentGuard — Security, Performance & Best Practices Review
 
-**Review Date:** 2026-05-16  
-**Reviewer:** Bob (Technical Lead)  
+**Review Date:** 2026-05-16 (original) | **Last updated:** 2026-08-01 (post-audit remediation)  
 **Scope:** Full-stack codebase analysis focusing on security, performance, and code quality
 
 ---
 
-## Executive Summary
+> [!CAUTION]
+> **SECRET INCIDENT — ACTION REQUIRED BY REPO OWNER:**  
+> An Anthropic API key (`sk-ant-api03-2jIKxqJ_2lV...`) was committed to git history
+> via `.env.example`. It must be treated as **compromised and burned**.
+> **Rotate/revoke immediately at [console.anthropic.com](https://console.anthropic.com).**
+> Git history scrubbing is advisory only — anyone with prior access already has the key.
+
+---
+
+## Post-Audit Remediation Status (2026-08-01)
+
+A second audit identified 7 new confirmed bugs/gaps not addressed in the original review.
+All 7 have now been fixed and verified by the test suite (74/74 tests pass).
+See `FIXES_IMPLEMENTED.md` for the fix table.
+
+**Benchmark results (regex-only mode, no Claude API):**
+- PII detection: Precision 100% / Recall 100% / F1 100% / FPR 0% (20-sample dataset)
+- Injection detection: Precision 100% / Recall 100% / F1 100% / FPR 0% (20-sample dataset)
+- Red-team block rate: 38.5% (regex-only; 8 attacks require Claude AI mode)
+- Throughput: 2.4 req/s (worker-thread overhead; a thread pool would improve this)
+- Full report: `backend/benchmark/benchmark-report.md`
+
+---
+
+## Executive Summary (Original 2026-05-16)
 
 AgentGuard is a well-architected AI governance platform with solid foundations. However, several **critical security vulnerabilities** and **performance bottlenecks** require immediate attention before production deployment. This review identifies 47 issues across security (18), performance (12), code quality (10), and best practices (7).
 
@@ -15,6 +38,7 @@ AgentGuard is a well-architected AI governance platform with solid foundations. 
 - 🟠 **High:** 15 issues (fix before production)
 - 🟡 **Medium:** 14 issues (fix within sprint)
 - 🟢 **Low:** 10 issues (technical debt)
+
 
 ---
 
