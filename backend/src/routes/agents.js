@@ -11,7 +11,7 @@
 const express = require('express');
 const { z } = require('zod');
 const prisma = require('../prisma/client');
-const { requireAuth, generateCapabilityToken } = require('../middleware/auth');
+const { requireAuth, requireRole, generateCapabilityToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -25,8 +25,8 @@ const AgentSchema = z.object({
   metadata: z.record(z.any()).optional().nullable(),
 });
 
-// POST /agents
-router.post('/', requireAuth, async (req, res, next) => {
+// POST /agents — create agent (admin | operator only)
+router.post('/', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const data = AgentSchema.parse(req.body);
     const agent = await prisma.agent.create({ data, include: { policy: true } });
@@ -81,8 +81,8 @@ router.get('/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// PUT /agents/:id
-router.put('/:id', requireAuth, async (req, res, next) => {
+// PUT /agents/:id — update agent (admin | operator only)
+router.put('/:id', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const data = AgentSchema.partial().parse(req.body);
     const agent = await prisma.agent.update({
@@ -96,8 +96,8 @@ router.put('/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// DELETE /agents/:id
-router.delete('/:id', requireAuth, async (req, res, next) => {
+// DELETE /agents/:id — deactivate agent (admin | operator only)
+router.delete('/:id', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     await prisma.agent.update({
       where: { id: req.params.id },
@@ -109,8 +109,8 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /agents/:id/token — issue a capability token
-router.post('/:id/token', requireAuth, async (req, res, next) => {
+// POST /agents/:id/token — issue capability token (admin | operator only)
+router.post('/:id/token', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const agent = await prisma.agent.findUnique({ where: { id: req.params.id } });
     if (!agent) return res.status(404).json({ error: 'Not Found', message: 'Agent not found' });
@@ -125,8 +125,8 @@ router.post('/:id/token', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /agents/:id/delegate — delegate a child capability token
-router.post('/:id/delegate', requireAuth, async (req, res, next) => {
+// POST /agents/:id/delegate — delegate child capability token (admin | operator only)
+router.post('/:id/delegate', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const { child_agent_id } = req.body;
     if (!child_agent_id) {

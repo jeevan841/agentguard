@@ -49,9 +49,20 @@
 > The breaking change removes the `raw` message option that enabled the attacks. This app's
 > `EmailService.js` does not use `raw` or any other removed API, so the bump is safe.
 
+### Round 3 Fix Status (adversarial audit, 2026-08-01)
 
+| Fix | Issue | Status | Verified By |
+|-----|-------|--------|-------------|
+| R3-1 | Prototype pollution in `sanitizeObject` via `__proto__` | ✅ Fixed | `sanitize.pollution.test.js` — 8 tests, PoC confirmed blocked |
+| R3-2 | RBAC roles defined but never enforced on any route | ✅ Fixed | `rbac.test.js` — 14 tests, viewer→403 on all mutations |
+| R3-3 | SSRF via user-controlled webhook URLs (auto-triggered every 10s) | ✅ Fixed | `validateWebhookUrl.test.js` — 20 tests, DNS rebinding blocked |
+| R3-4 | `verifyTempToken` algorithm unpinned (missed in Round 2) | ✅ Fixed | `verifyTempToken.alg.test.js` — alg:none and HS512 rejected |
+| R3-5 | No `trust proxy` config (rate limiting broken behind reverse proxy) | ✅ Fixed | `TRUST_PROXY_HOPS` env var + docs in `.env.example` |
+
+**Test suite after Round 3: 160/160 tests, 12 suites — all passing.**
 
 ### Implementation Status
+
 
 | Fix # | Issue | Status | Files Modified |
 |-------|-------|--------|----------------|

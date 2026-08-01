@@ -7,7 +7,7 @@ const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { runGuardrailChecks } = require('../services/guardrail/GuardrailService');
 const { writeAuditLog } = require('../services/AuditService');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -29,8 +29,8 @@ const GuardrailCheckSchema = z.object({
   log: z.boolean().default(true),
 });
 
-// POST /guardrail/check
-router.post('/check', requireAuth, guardrailLimiter, async (req, res, next) => {
+// POST /guardrail/check — (admin | operator only: viewers cannot submit requests)
+router.post('/check', requireAuth, requireRole('admin', 'operator'), guardrailLimiter, async (req, res, next) => {
   try {
     const { input, output, context, policy_id, agent_id, log } = GuardrailCheckSchema.parse(req.body);
 
@@ -78,8 +78,8 @@ router.post('/check', requireAuth, guardrailLimiter, async (req, res, next) => {
   }
 });
 
-// POST /guardrail/test
-router.post('/test', requireAuth, guardrailLimiter, async (req, res, next) => {
+// POST /guardrail/test — (admin | operator only)
+router.post('/test', requireAuth, requireRole('admin', 'operator'), guardrailLimiter, async (req, res, next) => {
   try {
     const { input, output, context, policy_id } = GuardrailCheckSchema.parse(req.body);
 
@@ -114,8 +114,8 @@ router.get('/policies', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /guardrail/policies - Create a policy
-router.post('/policies', requireAuth, async (req, res, next) => {
+// POST /guardrail/policies — create a policy (admin | operator only)
+router.post('/policies', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const { name, description, rules } = req.body;
     if (!name) return res.status(400).json({ error: 'Bad Request', message: 'name is required' });
@@ -140,8 +140,8 @@ router.post('/policies', requireAuth, async (req, res, next) => {
   }
 });
 
-// PUT /guardrail/policies/:id
-router.put('/policies/:id', requireAuth, async (req, res, next) => {
+// PUT /guardrail/policies/:id — update a policy (admin | operator only)
+router.put('/policies/:id', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const { name, description, rules, is_active } = req.body;
     const prisma = require('../prisma/client');

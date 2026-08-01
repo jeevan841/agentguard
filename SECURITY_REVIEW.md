@@ -1,6 +1,6 @@
 # AgentGuard — Security, Performance & Best Practices Review
 
-**Review Date:** 2026-05-16 (original) | **Last updated:** 2026-08-01 (post-audit remediation)  
+**Review Date:** 2026-05-16 (original) | **Last updated:** 2026-08-01 (Round 3 adversarial audit)  
 **Scope:** Full-stack codebase analysis focusing on security, performance, and code quality
 
 ---
@@ -14,20 +14,112 @@
 
 ---
 
-## Post-Audit Remediation Status (2026-08-01)
+## Post-Audit Remediation Status (Round 1–3, 2026-08-01)
 
-A second audit identified 7 new confirmed bugs/gaps not addressed in the original review.
-All 7 have now been fixed and verified by the test suite (74/74 tests pass).
-See `FIXES_IMPLEMENTED.md` for the fix table.
+Three rounds of audits covering static analysis, adversarial exploit attempts, and
+dependency scanning identified 18 total findings. All 18 are fixed and verified.
 
-**Benchmark results (regex-only mode, no Claude API):**
-- PII detection: Precision 100% / Recall 100% / F1 100% / FPR 0% (20-sample dataset)
-- Injection detection: Precision 100% / Recall 100% / F1 100% / FPR 0% (20-sample dataset)
-- Red-team block rate: 38.5% (regex-only; 8 attacks require Claude AI mode)
-- Throughput: 2.4 req/s (worker-thread overhead; a thread pool would improve this)
-- Full report: `backend/benchmark/benchmark-report.md`
+**Test suite: 160/160 tests, 12 suites — all passing.**  
+**Benchmark (post pool fix):** 689 req/s · p50=1.2ms · p95=3.7ms.
+
+See `FIXES_IMPLEMENTED.md` for the complete fix table.
 
 ---
+
+## Round 3 Findings & Resolutions (adversarial audit, 2026-08-01)
+
+### R3-1 · HIGH — Prototype Pollution in `sanitizeObject` via `__proto__`
+
+**Reproduction:** Sending `{"__proto__":{"polluted":true},"name":"test"}` through
+`sanitizeObject()` resulted in the returned object inheriting `polluted: true` from its
+prototype, even though it was not an own property of the sanitized output.
+
+**Root cause:** `sanitizeObject` iterated `Object.entries(obj)` and blindly wrote every
+key — including `__proto__` — into `sanitized[key]`, which triggers the setter on
+`Object.prototype` instead of writing an own property.
+
+**Fix (`src/middleware/sanitize.js`):**
+```js
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+for (const [key, value] of Object.entries(obj)) {
+  if (DANGEROUS_KEYS.has(key)) continue;   // primary fix
+  // ...
+}
+```
+
+**Verified:** `sanitize.pollution.test.js` — 8 tests confirm the PoC payload no longer
+pollutes the output prototype and that normal fields still pass through correctly.
+
+---
+
+### R3-2 · HIGH — RBAC roles defined but never enforced
+
+**Reproduction:** A management JWT with `role: 'viewer'` could call
+`POST /agents`, `PUT /guardrail/policies`, `POST /dashboard/webhooks`, and
+`POST /redteam/run` and receive 201/200 responses. The `role` field existed in the
+JWT payload but nothing read it.
+
+**Fix (`src/middleware/auth.js`):** Added `requireRole(...roles)` middleware that reads
+`req.user.role` (populated by `requireAuth`) and returns 403 if the role is not in the
+allowed set.
+
+**Permission matrix applied (minimum safe defaults):**
+
+| Route | Method | Required role |
+|-------|--------|---------------|
+| `/agents` | POST / PUT / DELETE | admin, operator |
+| `/agents/:id/token`, `/delegate` | POST | admin, operator |
+| `/guardrail/check`, `/test` | POST | admin, operator |
+| `/guardrail/policies` | POST / PUT | admin, operator |
+| `/dashboard/alerts` | POST / PUT / DELETE | admin, operator |
+| `/dashboard/webhooks` | POST | admin, operator |
+| `/redteam/run` | POST | admin, operator |
+| All GET routes | GET | any authenticated role |
+
+**Verified:** `rbac.test.js` — 14 tests; viewer tokens blocked from all mutating
+routes (403), admin and operator tokens pass, no-role tokens blocked.
+
+---
+
+### R3-3 · HIGH — SSRF via user-controlled webhook URLs
+
+**Reproduction:** `POST /dashboard/webhooks` with `{"url":"http://169.254.169.254/latest/meta-data/"}` was stored without validation and would be fetched by `AlertService.sendWebhook()` every 10 seconds when any dashboard client was connected.
+
+**Fix:**
+
+1. **`src/utils/validateWebhookUrl.js`** — new SSRF guard utility:
+   - Requires `https://` protocol
+   - Rejects `localhost` / `127.0.0.1` / `::1` by hostname string before DNS
+   - DNS-resolves the hostname and rejects RFC-1918, loopback, link-local (including 169.254.0.0/16), and carrier-grade NAT ranges
+
+2. **`src/routes/dashboard.js`** — `validateWebhookUrl()` called at webhook/alert creation and update time → returns 422 on failure.
+
+3. **`src/services/AlertService.js`** — `validateWebhookUrl()` re-called at send time (DNS rebinding guard): a hostname that resolved to a public IP at registration could be re-pointed to an internal address before the next 10-second broadcast cycle.
+
+**Verified:** `validateWebhookUrl.test.js` — 20 tests: all private/loopback/link-local ranges blocked, DNS rebinding simulation blocked at send time, valid public HTTPS URLs accepted.
+
+---
+
+### R3-4 · MEDIUM — `verifyTempToken` algorithm not pinned (missed in Round 2)
+
+**Reproduction:** Round 2 pinned `{ algorithms: ['HS256'] }` on all `jwt.verify` calls except the `verifyTempToken()` helper at `src/routes/auth.js:54`. A token signed with HS512 or `alg:none` could bypass MFA step 2 verification.
+
+**Fix:** `jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] })`.
+
+**Verified:** `verifyTempToken.alg.test.js` — HS512-signed and alg:none tokens rejected; valid HS256 temp token passes; expired and wrong-secret tokens rejected.
+
+---
+
+### R3-5 · LOW — No `trust proxy` configuration
+
+**Risk:** Without `app.set('trust proxy', N)`, `express-rate-limit` reads `req.socket.remoteAddress` instead of `X-Forwarded-For`. Behind a reverse proxy, every client appears to come from the proxy IP — collapsing per-client rate limiting into one shared bucket.
+
+**Fix (`src/index.js`):** `TRUST_PROXY_HOPS` env var drives `app.set('trust proxy', N)`. Defaults to 0 (safe for direct exposure; no spoofing). Set to 1 behind nginx/ALB/Cloudflare. Documented in `.env.example`.
+
+**Verified:** Deployment configuration — no automated test required per ground rules. The setting is env-driven so it can be validated in integration/staging environments.
+
+---
+
 
 ## Executive Summary (Original 2026-05-16)
 

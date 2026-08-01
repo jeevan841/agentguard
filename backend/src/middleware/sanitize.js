@@ -44,18 +44,28 @@ function sanitizeString(input, options = {}) {
   return sanitized;
 }
 
+// Keys that must never be copied from user-supplied objects.
+// Allowing __proto__ lets an attacker set inherited properties on every plain
+// object created downstream (prototype pollution). constructor/prototype are
+// also dangerous in recursive object contexts.
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 /**
  * Recursively sanitize object properties
  */
 function sanitizeObject(obj, options = {}) {
   if (!obj || typeof obj !== 'object') return obj;
-  
+
   if (Array.isArray(obj)) {
     return obj.map(item => sanitizeObject(item, options));
   }
-  
+
+  // Use a plain object literal (not null-prototype) so downstream code that
+  // does `result.hasOwnProperty` etc. keeps working, but skip every dangerous
+  // key so __proto__ can never reach the assignment.
   const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
+    if (DANGEROUS_KEYS.has(key)) continue;   // ← primary fix
     if (typeof value === 'string') {
       sanitized[key] = sanitizeString(value, options);
     } else if (typeof value === 'object' && value !== null) {
@@ -64,9 +74,10 @@ function sanitizeObject(obj, options = {}) {
       sanitized[key] = value;
     }
   }
-  
+
   return sanitized;
 }
+
 
 /**
  * Express middleware to sanitize request body and query params

@@ -51,11 +51,12 @@ function generateTempToken(userId, nextStep) {
 
 function verifyTempToken(token) {
   try {
-    return jwt.verify(token, config.jwt.secret);
+    return jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
   } catch {
     return null;
   }
 }
+
 
 // ─── POST /auth/register ──────────────────────────────────────────────────────
 router.post('/register', async (req, res, next) => {

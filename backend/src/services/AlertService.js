@@ -4,6 +4,7 @@
  */
 const config = require('../config');
 const prisma = require('../prisma/client');
+const { validateWebhookUrl } = require('../utils/validateWebhookUrl');
 
 let fetch;
 (async () => {
@@ -11,10 +12,22 @@ let fetch;
 })();
 
 /**
- * Send a webhook notification
+ * Send a webhook notification.
+ * Re-validates the URL immediately before dispatch to guard against DNS rebinding:
+ * a hostname that resolved to a public IP at registration time could be re-pointed
+ * to an internal address before the next metrics broadcast cycle (every 10 s).
  */
 async function sendWebhook(url, payload) {
   if (!url || !fetch) return false;
+
+  // Send-time SSRF re-check (DNS rebinding guard)
+  try {
+    await validateWebhookUrl(url);
+  } catch (ssrfErr) {
+    console.warn(`[Alert] Webhook SSRF guard blocked send to ${url}: ${ssrfErr.message}`);
+    return false;
+  }
+
   try {
     const response = await fetch(url, {
       method: 'POST',

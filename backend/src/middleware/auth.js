@@ -79,6 +79,31 @@ function requireCapabilityToken(req, res, next) {
 }
 
 /**
+ * Middleware: require one of the given roles on the management JWT.
+ * Must be used AFTER requireAuth (which populates req.user).
+ *
+ * Permission matrix (minimum safe defaults — review with product owner for
+ * finer-grained decisions):
+ *   admin    — full access to everything
+ *   operator — can run guardrail/redteam, manage agents/policies/webhooks
+ *   viewer   — read-only (GET routes only); rejected from all mutations
+ *
+ * @param {...string} roles  One or more allowed roles (e.g. 'admin', 'operator')
+ */
+function requireRole(...roles) {
+  return (req, res, next) => {
+    const userRole = req.user?.role;
+    if (!userRole || !roles.includes(userRole)) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: `This action requires one of the following roles: ${roles.join(', ')}. Your role: ${userRole || 'unknown'}.`,
+      });
+    }
+    next();
+  };
+}
+
+/**
  * Middleware: validate that the capability token allows a specific tool
  */
 function requireTool(toolName) {
@@ -99,6 +124,7 @@ function requireTool(toolName) {
     next();
   };
 }
+
 
 /**
  * Generate a management JWT
@@ -141,6 +167,7 @@ function generateCapabilityToken(agent, parentCapability = null) {
 
 module.exports = {
   requireAuth,
+  requireRole,
   requireCapabilityToken,
   requireTool,
   generateManagementToken,

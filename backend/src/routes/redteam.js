@@ -9,12 +9,12 @@ const express = require('express');
 const { runRedTeamSuite, ATTACK_LIBRARY } = require('../services/RedTeamService');
 const { generateRedTeamPdf } = require('../services/PdfService');
 const prisma = require('../prisma/client');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// POST /redteam/run
-router.post('/run', requireAuth, async (req, res, next) => {
+// POST /redteam/run — trigger a red-team suite (admin | operator only)
+router.post('/run', requireAuth, requireRole('admin', 'operator'), async (req, res, next) => {
   try {
     const { agent_id, attack_types } = req.body;
     if (!agent_id) {

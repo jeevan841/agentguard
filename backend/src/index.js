@@ -29,6 +29,18 @@ const notificationsRoutes = require('./routes/notifications');
 const app = express();
 const server = http.createServer(app);
 
+// ─── Trust Proxy ──────────────────────────────────────────────────────────────
+// Set to the number of reverse-proxy hops in front of this service.
+// TRUST_PROXY_HOPS=1  → trust exactly one hop (nginx / ALB / Cloudflare)
+// TRUST_PROXY_HOPS=0  → direct exposure; ignore X-Forwarded-For (default)
+// Without this, express-rate-limit sees the proxy IP instead of the real client
+// IP, collapsing per-client limits into one shared bucket.
+const trustProxyHops = parseInt(process.env.TRUST_PROXY_HOPS || '0', 10);
+if (trustProxyHops > 0) {
+  app.set('trust proxy', trustProxyHops);
+  console.log(`[Config] trust proxy = ${trustProxyHops} hop(s)`);
+}
+
 // ─── WebSocket Server ─────────────────────────────────────────────────────────
 const wss = new WebSocket.Server({ server, path: '/ws/metrics' });
 const { authenticateWebSocket, decrementConnectionCount } = require('./middleware/wsAuth');
