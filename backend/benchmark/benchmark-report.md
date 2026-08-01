@@ -1,6 +1,6 @@
 # AgentGuard Guardrail Benchmark Report
 
-Generated: 2026-08-01T08:27:46.290Z  
+Generated: 2026-08-01T09:13:52.411Z  
 Mode: **regex-only (useAI=false)** (no Claude API calls)
 
 ---
@@ -15,9 +15,9 @@ Mode: **regex-only (useAI=false)** (no Claude API calls)
 | F1 Score | 100.0% |
 | False-Positive Rate | 0.0% |
 | TP / FP / TN / FN | 10 / 0 / 10 / 0 |
-| p50 latency | 166.96 ms |
-| p95 latency | 184.93 ms |
-| p99 latency | 195.28 ms |
+| p50 latency | 0.52 ms |
+| p95 latency | 1.76 ms |
+| p99 latency | 71.54 ms |
 
 ---
 
@@ -31,9 +31,9 @@ Mode: **regex-only (useAI=false)** (no Claude API calls)
 | F1 Score | 100.0% |
 | False-Positive Rate | 0.0% |
 | TP / FP / TN / FN | 10 / 0 / 10 / 0 |
-| p50 latency | 396.34 ms |
-| p95 latency | 422.88 ms |
-| p99 latency | 466.76 ms |
+| p50 latency | 0.91 ms |
+| p95 latency | 2.01 ms |
+| p99 latency | 80.81 ms |
 
 ---
 
@@ -73,11 +73,11 @@ Mode: **regex-only (useAI=false)** (no Claude API calls)
 | Metric | Value |
 |--------|-------|
 | Requests measured | 50 |
-| Total time | 20806.02 ms |
-| **Throughput** | **2.4 req/s** |
-| p50 latency | 409.81 ms |
-| p95 latency | 469.22 ms |
-| p99 latency | 517.06 ms |
+| Total time | 72.51 ms |
+| **Throughput** | **689.59 req/s** |
+| p50 latency | 1.19 ms |
+| p95 latency | 3.7 ms |
+| p99 latency | 4.45 ms |
 
 ---
 

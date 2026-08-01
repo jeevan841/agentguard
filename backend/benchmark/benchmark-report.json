@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T08:27:46.290Z",
+  "generated_at": "2026-08-01T09:13:52.411Z",
   "mode": "regex-only (useAI=false)",
   "pii_detection": {
     "dataset_size": 20,
@@ -11,9 +11,9 @@
     "fp": 0,
     "tn": 10,
     "fn": 0,
-    "p50_ms": 166.96,
-    "p95_ms": 184.93,
-    "p99_ms": 195.28
+    "p50_ms": 0.52,
+    "p95_ms": 1.76,
+    "p99_ms": 71.54
   },
   "injection_detection": {
     "dataset_size": 20,
@@ -25,9 +25,9 @@
     "fp": 0,
     "tn": 10,
     "fn": 0,
-    "p50_ms": 396.34,
-    "p95_ms": 422.88,
-    "p99_ms": 466.76
+    "p50_ms": 0.91,
+    "p95_ms": 2.01,
+    "p99_ms": 80.81
   },
   "red_team": {
     "total_attacks": 18,
@@ -89,10 +89,10 @@
   },
   "throughput": {
     "requests_measured": 50,
-    "total_ms": 20806.02,
-    "rps": 2.4,
-    "p50_ms": 409.81,
-    "p95_ms": 469.22,
-    "p99_ms": 517.06
+    "total_ms": 72.51,
+    "rps": 689.59,
+    "p50_ms": 1.19,
+    "p95_ms": 3.7,
+    "p99_ms": 4.45
   }
 }

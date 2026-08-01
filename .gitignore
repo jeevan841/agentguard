@@ -38,3 +38,5 @@ coverage/
 # ─── Temp ─────────────────────────────────────────────────────────────────────
 *.tmp
 *.swp
+notebook_validate_temp*.json
+*_validate_temp*.json

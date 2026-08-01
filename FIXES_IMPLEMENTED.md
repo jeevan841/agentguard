@@ -1,7 +1,7 @@
 # AgentGuard — Security Fixes Implementation Summary
 
-**Last updated:** 2026-08-01 (post-audit remediation)  
-**Status:** ⚠️ Partial — 4 of 7 audit findings fixed and verified by test suite. See status table below.
+**Last updated:** 2026-08-01 (Round 2 post-audit remediation)  
+**Status:** ✅ All 13 confirmed issues fixed and verified by test suite.
 
 ---
 
@@ -12,22 +12,42 @@
 
 ---
 
-## 🎯 Executive Summary (2026-08-01 Audit)
+## 🎯 Executive Summary (Round 1 + Round 2 Audits)
 
-A code audit identified 7 confirmed issues. The status below reflects items that have been
-**verified by the test suite** (74/74 tests passing) — not claimed without evidence.
+**Round 1 (2026-08-01 commit `1b821c7d`):** 7 findings — all fixed.  
+**Round 2 (2026-08-01 follow-up):** 6 additional findings — all fixed.  
+**Test suite:** 102/102 tests passing across 8 suites.  
+**Benchmark (post pool fix):** 689 req/s, p95=3.7ms (was 2.4 req/s, p95=469ms).
 
-### Fix Status (post-audit)
+### Round 1 Fix Status
 
 | Fix | Issue | Status | Verified By |
 |-----|-------|--------|-------------|
-| #1 | Missing `await` in PIIDetector / InjectionDetector | ✅ Fixed | `PIIDetector.test.js`, `InjectionDetector.test.js` |
-| #2 | Fake ReDoS protection (setTimeout) → worker_thread | ✅ Fixed | `safeRegex.test.js` (catastrophic pattern test) |
-| #3 | Docker broken (no .dockerignore, wrong Prisma targets) | ✅ Fixed | `.dockerignore` added, `schema.prisma` updated, `node_modules` untracked |
-| #4 | Real Anthropic API key in `.env.example` | ✅ Fixed (code) | `.env.example` scrubbed — **key rotation required by owner** |
-| #5 | No test suite | ✅ Fixed | 74 tests across 5 suites — see `test/unit/` |
-| #6 | No benchmark harness | ✅ Fixed | `benchmark/run.js` with precision/recall/F1 + latency report |
-| #7 | Inaccurate documentation | ✅ Fixed | This file and `SECURITY_REVIEW.md`, `NEW_FEATURES.md` updated |
+| R1-1 | Missing `await` in PIIDetector / InjectionDetector | ✅ Fixed | `PIIDetector.test.js`, `InjectionDetector.test.js` |
+| R1-2 | Fake ReDoS protection (setTimeout) → worker_thread | ✅ Fixed | `safeRegex.test.js` (catastrophic pattern regression) |
+| R1-3 | Docker broken (no .dockerignore, wrong Prisma targets) | ✅ Fixed | `.dockerignore`, `schema.prisma` binaryTargets |
+| R1-4 | Real Anthropic API key in `.env.example` | ✅ Fixed (code) | `.env.example` scrubbed — **key rotation required** |
+| R1-5 | No test suite | ✅ Fixed | 74→102 tests across 8 suites |
+| R1-6 | No benchmark harness | ✅ Fixed | `benchmark/run.js` |
+| R1-7 | Inaccurate documentation | ✅ Fixed | All three doc files updated |
+
+### Round 2 Fix Status
+
+| Fix | Issue | Status | Verified By |
+|-----|-------|--------|-------------|
+| R2-1 | `requireAuth` allows capability tokens on management routes | ✅ Fixed | `auth.middleware.test.js` — capability/mfa_temp tokens → 401 |
+| R2-2 | JWT algorithm not pinned (algorithm confusion / alg:none) | ✅ Fixed | `auth.middleware.test.js` — HS512 and alg:none → 401 |
+| R2-3 | 9 CVEs in dependency lockfile | ✅ Fixed | `npm audit` → 0 vulnerabilities |
+| R2-4 | Worker thread spawned per-pattern per-request (2.4 req/s) | ✅ Fixed | Piscina pool: 689 req/s, p95=3.7ms — `safeRegex.pool.test.js` |
+| R2-5 | No per-account OTP lockout (IP-only rate limiting) | ✅ Fixed | `OtpStore.test.js` — lockout after 5 failures from any IP |
+| R2-6 | Stray scratch file `notebook_validate_temp.json` in repo | ✅ Fixed | `git rm`'d; pattern added to `.gitignore` |
+
+---
+
+> **nodemailer deliberate major version bump (R2-3):** `nodemailer` v8→v9 was a breaking
+> change required to fix 4 CVEs (CRLF injection, SSRF, TLS cert bypass, file-read bypass).
+> The breaking change removes the `raw` message option that enabled the attacks. This app's
+> `EmailService.js` does not use `raw` or any other removed API, so the bump is safe.
 
 
 

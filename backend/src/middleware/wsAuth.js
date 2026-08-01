@@ -62,7 +62,7 @@ function authenticateWebSocket(ws, req) {
   
   // Verify JWT
   try {
-    const payload = jwt.verify(token, config.jwt.secret);
+    const payload = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
     
     if (payload.type !== 'management') {
       ws.close(1008, 'Invalid token type');

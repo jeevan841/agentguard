@@ -12,7 +12,7 @@ const config = require('../config');
  */
 async function revokeToken(token, reason = 'manual_revoke') {
   try {
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
     const jti = decoded.jti || decoded.sub; // Use jti or fallback to sub
     const expiresAt = new Date(decoded.exp * 1000);
 
@@ -47,7 +47,7 @@ async function revokeToken(token, reason = 'manual_revoke') {
  */
 async function isTokenRevoked(token) {
   try {
-    const decoded = jwt.verify(token, config.jwt.secret, { ignoreExpiration: true });
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'], ignoreExpiration: true });
     const jti = decoded.jti || decoded.sub;
 
     // Check Redis first (fast)

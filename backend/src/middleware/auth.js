@@ -21,7 +21,14 @@ function requireAuth(req, res, next) {
   const token = authHeader.slice(7);
 
   try {
-    const payload = jwt.verify(token, config.jwt.secret);
+    const payload = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
+
+    // Reject non-management tokens (e.g. capability or mfa_temp tokens signed
+    // with the same secret must NOT be usable on management-only routes).
+    if (payload.type !== 'management') {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Invalid token type' });
+    }
+
     req.user = payload;
     next();
   } catch (err) {
@@ -52,7 +59,7 @@ function requireCapabilityToken(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, config.jwt.secret);
+    const payload = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
 
     if (payload.type !== 'capability') {
       return res.status(403).json({

@@ -1,144 +1,150 @@
 /**
- * Safe Regex Utilities
+ * Safe Regex Utilities — Worker Pool Edition
+ *
  * Protects against ReDoS (Regular Expression Denial of Service) by running
- * each regex in an isolated worker_thread that is hard-terminated on timeout.
+ * each regex operation in a worker thread from a persistent Piscina pool.
  *
  * WHY THIS WORKS (and why setTimeout alone does NOT):
  *   Node.js regex execution is synchronous on the main thread. A catastrophic
- *   backtracking pattern will block the entire event loop — no timer callback,
- *   no Promise resolution, nothing can preempt it.
+ *   backtracking pattern blocks the entire event loop — no timer callback,
+ *   no Promise can preempt it.
  *
- *   By offloading regex execution to a worker_thread we get true OS-level
- *   concurrency. Calling worker.terminate() sends SIGTERM to the thread and
- *   immediately stops the regex, regardless of how long it would otherwise run.
+ *   By offloading to a worker_thread we get true OS-level concurrency.
+ *   When a task times out, Piscina terminates the offending thread via an
+ *   AbortController signal and replaces it with a fresh one — providing the
+ *   same hard-kill guarantee as the previous per-call approach.
+ *
+ * WHY PISCINA (vs. spawn-per-call):
+ *   Round 1 used a new Worker() per regex call. Spawning ~30 threads per
+ *   guardrail check had a measured cost of ~400ms p95 and ~2.4 req/s throughput.
+ *   A persistent pool of CPU-count threads eliminates spawn overhead while
+ *   preserving the per-task hard-timeout-and-terminate guarantee.
  */
 'use strict';
 
-const { Worker } = require('worker_threads');
+const Piscina = require('piscina');
 const path = require('path');
+const os = require('os');
 
-const WORKER_SCRIPT = path.join(__dirname, 'regexWorker.js');
+// One pool shared for the lifetime of the process.
+// Sized to available CPU cores (min 2) so it doesn't starve other work.
+const pool = new Piscina({
+  filename: path.join(__dirname, 'regexWorker.js'),
+  minThreads: 1,
+  maxThreads: Math.max(2, os.cpus().length),
+  idleTimeout: 30000, // keep threads alive 30 s after their last task
+});
 
 /**
- * Run a single regex operation in a dedicated worker thread.
- * The worker is created per-call so a terminated worker never affects others.
+ * Run a single regex operation via the pool with a hard per-task timeout.
+ * If the task exceeds timeoutMs, the worker thread is terminated and replaced.
  *
  * @param {'test'|'match'|'replace'} operation
  * @param {RegExp}  pattern
  * @param {string}  text
- * @param {string}  [replacement]  Only used for 'replace' operation.
- * @param {number}  [timeoutMs=100]
+ * @param {string}  [replacement]  Only used for 'replace'.
+ * @param {number}  [timeoutMs=200]
  * @returns {Promise<boolean|Array|string|null>}
  */
-function runInWorker(operation, pattern, text, replacement, timeoutMs = 100) {
-  return new Promise((resolve, reject) => {
-    // Serialize the RegExp so it can cross the structured-clone boundary.
-    const flags = pattern.flags;
-    const source = pattern.source;
+function runInPool(operation, pattern, text, replacement, timeoutMs = 200) {
+  const controller = new AbortController();
 
-    const worker = new Worker(WORKER_SCRIPT, {
-      workerData: { operation, pattern: source, flags, text, replacement },
-    });
+  // Hard-kill the worker thread if it exceeds the timeout.
+  // Piscina will terminate the thread and spawn a replacement automatically.
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    // Hard-kill the worker after timeoutMs. This genuinely stops
-    // catastrophic backtracking — something setTimeout cannot do.
-    const timer = setTimeout(() => {
-      worker.terminate(); // kills the thread immediately
-      reject(new Error(`Regex timed out after ${timeoutMs}ms — possible ReDoS pattern`));
-    }, timeoutMs);
+  const task = pool.run(
+    {
+      operation,
+      pattern: pattern.source,
+      flags: pattern.flags,
+      text,
+      replacement,
+    },
+    { signal: controller.signal }
+  );
 
-    worker.on('message', ({ ok, result, error }) => {
+  return task
+    .then((response) => {
       clearTimeout(timer);
-      if (ok) {
-        resolve(result);
-      } else {
-        reject(new Error(error));
+      if (response.ok) return response.result;
+      throw new Error(response.error);
+    })
+    .catch((err) => {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        throw new Error(`Regex timed out after ${timeoutMs}ms — possible ReDoS pattern`);
       }
+      throw err;
     });
-
-    worker.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-
-    worker.on('exit', (code) => {
-      clearTimeout(timer);
-      // Non-zero exit after we already rejected (from timeout) is expected.
-      // Only reject here if we haven't resolved/rejected yet.
-      if (code !== 0) {
-        reject(new Error(`Regex worker exited unexpectedly with code ${code}`));
-      }
-    });
-  });
 }
 
 /**
- * Execute regex test in a worker thread with hard timeout.
+ * Execute regex test via pool with hard timeout.
  * @param {RegExp} pattern
  * @param {string} text
- * @param {number} [timeoutMs=100]
+ * @param {number} [timeoutMs=200]
  * @returns {Promise<boolean>}
  */
-function safeRegexTest(pattern, text, timeoutMs = 100) {
-  return runInWorker('test', pattern, text, undefined, timeoutMs);
+function safeRegexTest(pattern, text, timeoutMs = 200) {
+  return runInPool('test', pattern, text, undefined, timeoutMs);
 }
 
 /**
- * Execute regex match in a worker thread with hard timeout.
+ * Execute regex match via pool with hard timeout.
  * @param {RegExp} pattern
  * @param {string} text
- * @param {number} [timeoutMs=100]
+ * @param {number} [timeoutMs=200]
  * @returns {Promise<Array|null>}
  */
-function safeRegexMatch(pattern, text, timeoutMs = 100) {
-  return runInWorker('match', pattern, text, undefined, timeoutMs);
+function safeRegexMatch(pattern, text, timeoutMs = 200) {
+  return runInPool('match', pattern, text, undefined, timeoutMs);
 }
 
 /**
- * Batch regex operations, each in its own worker thread.
- * Timed-out or erroring patterns are skipped (logged as warnings); they do
- * NOT abort the entire scan.
+ * Batch regex scan — runs all patterns through the pool concurrently.
+ * Timed-out or erroring patterns are skipped (logged); they do NOT abort
+ * the rest of the scan.
  *
  * @param {Array<{type:string, pattern:RegExp, severity:string}>} patterns
  * @param {string} text
- * @param {number} [timeoutMs=150]
+ * @param {number} [timeoutMs=200]
  * @returns {Promise<Array>}
  */
-async function safeRegexScan(patterns, text, timeoutMs = 150) {
+async function safeRegexScan(patterns, text, timeoutMs = 200) {
+  // Run all patterns concurrently through the pool — the pool caps parallelism
+  // to maxThreads automatically, so this won't spawn unlimited threads.
+  const settled = await Promise.allSettled(
+    patterns.map((p) => safeRegexMatch(p.pattern, text, timeoutMs).then((matches) => ({ p, matches })))
+  );
+
   const results = [];
-
-  for (const patternObj of patterns) {
-    const { type, pattern, severity } = patternObj;
-
-    try {
-      const matches = await safeRegexMatch(pattern, text, timeoutMs);
+  for (const outcome of settled) {
+    if (outcome.status === 'fulfilled') {
+      const { p, matches } = outcome.value;
       if (matches && matches.length > 0) {
-        results.push({
-          type,
-          matches,
-          severity,
-          count: matches.length,
-        });
+        results.push({ type: p.type, matches, severity: p.severity, count: matches.length });
       }
-    } catch (err) {
-      // Pattern timed out or errored — log and continue.
-      console.warn(`[SafeRegex] Pattern "${type}" aborted: ${err.message}`);
+    } else {
+      // Find the corresponding pattern for logging (by index)
+      const idx = settled.indexOf(outcome);
+      const label = patterns[idx]?.type ?? '?';
+      console.warn(`[SafeRegex] Pattern "${label}" aborted: ${outcome.reason?.message}`);
     }
   }
-
   return results;
 }
 
 /**
- * Execute regex replace in a worker thread with hard timeout.
+ * Execute regex replace via pool with hard timeout.
  * @param {RegExp} pattern
  * @param {string} text
  * @param {string} replacement
- * @param {number} [timeoutMs=100]
+ * @param {number} [timeoutMs=200]
  * @returns {Promise<string>}
  */
-function safeRegexReplace(pattern, text, replacement, timeoutMs = 100) {
-  return runInWorker('replace', pattern, text, replacement, timeoutMs);
+function safeRegexReplace(pattern, text, replacement, timeoutMs = 200) {
+  return runInPool('replace', pattern, text, replacement, timeoutMs);
 }
 
 module.exports = {
@@ -146,4 +152,6 @@ module.exports = {
   safeRegexMatch,
   safeRegexScan,
   safeRegexReplace,
+  // Expose pool for graceful shutdown and testing
+  _pool: pool,
 };

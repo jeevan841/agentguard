@@ -217,9 +217,20 @@ router.post('/mfa/email-otp', async (req, res, next) => {
       return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired session' });
     }
 
-    const valid = await verifyAndConsumeOtp(payload.userId, code);
-    if (!valid) {
-      return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired OTP code' });
+    const result = await verifyAndConsumeOtp(payload.userId, code);
+
+    if (result.locked) {
+      return res.status(429).json({
+        error: 'Too Many Requests',
+        message: 'Account temporarily locked due to too many failed attempts. Try again in 15 minutes.',
+      });
+    }
+
+    if (!result.valid) {
+      const hint = result.remainingAttempts !== undefined
+        ? ` (${result.remainingAttempts} attempt${result.remainingAttempts !== 1 ? 's' : ''} remaining)`
+        : '';
+      return res.status(401).json({ error: 'Unauthorized', message: `Invalid or expired OTP code${hint}` });
     }
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
@@ -246,6 +257,7 @@ router.post('/mfa/email-otp', async (req, res, next) => {
     next(err);
   }
 });
+
 
 // ─── POST /auth/mfa/totp (Step 3 — TOTP, optional) ───────────────────────────
 router.post('/mfa/totp', async (req, res, next) => {
